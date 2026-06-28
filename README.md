@@ -61,21 +61,6 @@ The C-RAG system operates as a state-graph workflow that dynamically evaluates t
 
 ---
 
-## Technical Optimizations and Workarounds
-
-### 1. Ollama Embedding Batching
-When indexing large corpora, importing thousands of document chunks simultaneously can overload the Ollama embedding client, resulting in a connection failure (`ollama._types.ResponseError: Post "/tokenize": EOF`). To prevent this, the ingestion module initializes the Chroma database on disk with the first chunk, and then inserts all remaining chunks in batches of 100. This ensures stable memory consumption and reliable embedding generation.
-
-### 2. SQLite exFAT File Locking Workaround
-If the project files reside on an external SSD formatted as **exFAT** under macOS, executing database writes directly in the project folder will trigger SQLite errors (`attempt to write a readonly database`). This occurs because the exFAT filesystem does not support standard POSIX locks needed by SQLite. 
-To resolve this, the actual database files are stored in the host APFS partition (under the user's home directory `/Users/udit/.gemini/antigravity/chroma_db`) and symlinked into the backend folder (`backend/chroma_db`). The sqlite journal/WAL mechanisms write successfully to the APFS location.
-
-### 3. Next.js Turbopack Cache exFAT Workaround
-Similar to SQLite, the Turbopack build engine used by Next.js uses a local database for caching builds (`.next/cache/dev/cache/turbopack`). Running `npm run dev` directly on an exFAT partition triggers `[Error: Failed to open database ... Caused by: 0: Loading persistence directory failed]`. 
-To fix this, we preserve `.next` as a regular directory so that Node.js module resolution works correctly within the project's `node_modules` path, and symlink **only the cache directory** (`.next/cache`) to the APFS system disk (under the user's home directory `/Users/udit/.gemini/antigravity/next_cache`).
-
----
-
 ## Ingestion and In-Memory Fallback
 - **ChromaDB Loading Check**: The backend verification checks if `backend/chroma_db/chroma.sqlite3` exists. If the folder is empty or not initialized, it automatically indexes the PDFs in `Docs/` on the first search request, persists the database to disk, and loads it for subsequent queries.
 - **Tavily Key Check**: If `TAVILY_API_KEY` is omitted in the `.env` file, the backend skips the web search node gracefully rather than raising an unhandled exception, displaying a status warning in the frontend dashboard.
