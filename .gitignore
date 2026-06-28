@@ -1,0 +1,5 @@
+backend/.env
+._*
+*/__*
+backend/env
+._.gitignore
